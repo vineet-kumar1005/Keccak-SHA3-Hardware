@@ -1,3 +1,5 @@
+Keccak-SHA3-Hardware
+
 Verilog implementation of the Keccak-f[1600] permutation and SHA-3 family cryptographic primitives.
 
 ## Features
