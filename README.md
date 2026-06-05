@@ -34,3 +34,10 @@ Keccak-Verilog/
 ## Tools Used
 - Verilog HDL
 - Icarus Verilog
+
+
+## Future Work
+
+- Implement SHA3-256 and SHA3-512 using the Keccak-f[1600] core.
+- Implement SHAKE128 and SHAKE256 extendable-output functions (XOFs).
+- Add support for streaming message absorption and squeezing.
