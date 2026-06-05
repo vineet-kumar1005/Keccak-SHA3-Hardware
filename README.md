@@ -34,8 +34,3 @@ Keccak-Verilog/
 ## Tools Used
 - Verilog HDL
 - Icarus Verilog
-
-## Future Work
-- Testbench verification
-- SHA3-256 wrapper
-- FPGA implementation
