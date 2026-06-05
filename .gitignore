@@ -1,0 +1,14 @@
+# Simulation outputs
+sim
+*.vvp
+*.vcd
+*.out
+
+# GTKWave
+*.gtkw
+
+# Temporary files
+*.log
+
+# VS Code
+.vscode/
