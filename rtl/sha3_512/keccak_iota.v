@@ -1,0 +1,58 @@
+`timescale 1ns / 1ps
+
+module keccak_iota (
+    input  wire [1599:0] state_in_flat,
+    input  wire [4:0]    round_idx,      // 0 to 23
+    output reg  [1599:0] iota_out_flat
+);
+
+    // 64-bit Round Constant wire
+    reg [63:0] RC;
+
+    // ==========================================
+    // 1. Look-Up Table (LUT) for Round Constants
+    // Precomputed from the FIPS 202 LFSR rc(t)
+    // ==========================================
+    always @(*) begin
+        case (round_idx)
+            5'd00: RC = 64'h0000_0000_0000_0001;
+            5'd01: RC = 64'h0000_0000_0000_8082;
+            5'd02: RC = 64'h8000_0000_0000_808A;
+            5'd03: RC = 64'h8000_0000_8000_8000;
+            5'd04: RC = 64'h0000_0000_0000_808B;
+            5'd05: RC = 64'h0000_0000_8000_0001;
+            5'd06: RC = 64'h8000_0000_8000_8081;
+            5'd07: RC = 64'h8000_0000_0000_8009;
+            5'd08: RC = 64'h0000_0000_0000_008A;
+            5'd09: RC = 64'h0000_0000_0000_0088;
+            5'd10: RC = 64'h0000_0000_8000_8009;
+            5'd11: RC = 64'h0000_0000_8000_000A;
+            5'd12: RC = 64'h0000_0000_8000_808B;
+            5'd13: RC = 64'h8000_0000_0000_008B;
+            5'd14: RC = 64'h8000_0000_0000_8089;
+            5'd15: RC = 64'h8000_0000_0000_8003;
+            5'd16: RC = 64'h8000_0000_0000_8002;
+            5'd17: RC = 64'h8000_0000_0000_0080;
+            5'd18: RC = 64'h0000_0000_0000_800A;
+            5'd19: RC = 64'h8000_0000_8000_000A;
+            5'd20: RC = 64'h8000_0000_8000_8081;
+            5'd21: RC = 64'h8000_0000_0000_8080;
+            5'd22: RC = 64'h0000_0000_8000_0001;
+            5'd23: RC = 64'h8000_0000_8000_8008;
+            default: RC = 64'h0000_0000_0000_0000;
+        endcase
+    end
+
+    // ==========================================
+    // 2. Apply Iota Logic
+    // ==========================================
+    always @(*) begin
+        // Pass the entire 1600-bit state through perfectly intact...
+        iota_out_flat = state_in_flat;
+        
+        // ... except for Lane(0,0), which are the first 64 bits.
+        // XOR Lane(0,0) with the Round Constant.
+        iota_out_flat[63:0] = state_in_flat[63:0] ^ RC;
+    end
+
+endmodule
