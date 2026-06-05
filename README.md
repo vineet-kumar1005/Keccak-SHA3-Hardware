@@ -1,28 +1,25 @@
-# Keccak-Verilog
-
-Verilog implementation of the Keccak-f[1600] permutation used in SHA-3.
+Verilog implementation of the Keccak-f[1600] permutation and SHA-3 family cryptographic primitives.
 
 ## Features
-- Theta step
-- Rho step
-- Pi step
-- Chi step
-- Iota step
-- Round function
-- Top-level permutation module
+
+* Keccak-f[1600] permutation core
+* SHA3-256 hash function
+* SHA3-512 hash function
+* SHAKE128 extendable-output function (XOF)
+* SHAKE256 extendable-output function (XOF)
+* Modular and reusable hardware architecture
+* Verilog HDL implementation
 
 ## Directory Structure
 
 ```text
-Keccak-Verilog/
+Keccak-SHA3-Hardware/
 ├── rtl/
-│   ├── keccak_theta.v
-│   ├── keccak_rho.v
-│   ├── keccak_pi.v
-│   ├── keccak_chi.v
-│   ├── keccak_iota.v
-│   ├── keccak_round.v
-│   └── keccak_permutation.v
+│   ├── keccak/
+│   ├── sha3_256/
+│   ├── sha3_512/
+│   ├── shake128/
+│   └── shake256/
 │
 ├── docs/
 │   └── NIST.FIPS.202.pdf
@@ -31,13 +28,18 @@ Keccak-Verilog/
 └── .gitignore
 ```
 
-## Tools Used
-- Verilog HDL
-- Icarus Verilog
+## References
 
+* FIPS 202: SHA-3 Standard – Permutation-Based Hash and Extendable-Output Functions
+* Keccak Team Documentation
 
 ## Future Work
 
-- Implement SHA3-256 and SHA3-512 using the Keccak-f[1600] core.
-- Implement SHAKE128 and SHAKE256 extendable-output functions (XOFs).
-- Add support for streaming message absorption and squeezing.
+* NIST Known Answer Test (KAT) verification
+* FPGA synthesis and resource utilization analysis
+* Performance optimization and throughput evaluation
+* Integration with post-quantum cryptographic schemes such as ML-KEM
+
+## Author
+
+Vineet Kumar
