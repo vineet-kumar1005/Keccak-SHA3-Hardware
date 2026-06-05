@@ -13,7 +13,6 @@ Verilog implementation of the Keccak-f[1600] permutation used in SHA-3.
 
 ## Directory Structure
 rtl/
-tb/
 
 ## Tools Used
 - Verilog HDL
