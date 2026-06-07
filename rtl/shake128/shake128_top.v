@@ -1,66 +1,76 @@
 `timescale 1ns / 1ps
 
-module shake128_top (
-    input  wire          clk,
-    input  wire          rst_n,
-    input  wire          start,
-    input  wire [271:0]  message_in,    // 34-byte input
-    output wire          ready,
-    output wire          done,
-    output wire [1343:0] hash_out       // 168-byte output
+module shake128_top #(
+    parameter MSG_BITS = 272
+) (
+    input  wire                  clk,
+    input  wire                  rst_n,
+    input  wire                  start,
+    input  wire [MSG_BITS-1:0]   message_in,   // Raw user input (MSG_BITS wide)
+    output wire                  ready,         // From permutation — the only stall source
+    output wire                  done,
+    output wire [1343:0]         hash_out       // SHAKE128 output (always 1344 bits)
 );
 
-    // Interconnect Wires
-    wire          pad_done;
-    wire [1599:0] padded_state_flat;
-    wire [1599:0] permuted_state_flat;
-    wire [271:0]  swapped_message_in;
-    
-    // =======================================================
-    // FIX 1: This internal wire MUST be 1344 bits! 
-    // If it was left at [511:0] or [271:0], the higher bits get dropped.
-    // =======================================================
-    wire [1343:0] raw_hash_out; 
+    // -----------------------------------------------------------------------
+    // Internal wires
+    // -----------------------------------------------------------------------
+    wire [MSG_BITS-1:0] swapped_message_in;
+    wire [1343:0]       block_1344_unused;
+    wire [1599:0]       padded_state_flat;
+    wire                pad_done;               // = start (combinational)
+    wire [1599:0]       permuted_state_flat;
+    wire [1343:0]       raw_hash_out;
+    wire                perm_ready;
 
-    // 0. Input Endian Swap (272-bit)
-    endian_swap_272 swap_in_inst (
-        .in_data(message_in),
+    // -----------------------------------------------------------------------
+    // 0. Endian-swap the input (MSG_BITS wide)
+    // -----------------------------------------------------------------------
+    endian_swap #(.DATA_BITS(MSG_BITS)) swap_in_inst (
+        .in_data (message_in),
         .out_data(swapped_message_in)
     );
 
-    // 1. Padding Phase 
-    // (Note: Your screenshot showed 'shake12_pad_272bit.v'. Make sure the module name matches your file!)
-    shake128_pad_272bit padding_inst (
-        .clk(clk),
-        .rst_n(rst_n),
-        .start(start),
+    // -----------------------------------------------------------------------
+    // 1. Padding — purely combinational, no FSM
+    //    pad_done = start (same cycle); state_A_flat valid whenever message is.
+    // -----------------------------------------------------------------------
+    shake128_pad_272bit #(.MSG_BITS(MSG_BITS)) padding_inst (
+        .clk        (clk),
+        .rst_n      (rst_n),
+        .start      (start),
         .message_272(swapped_message_in),
-        .ready(ready),             
-        .done(pad_done),           
-        .block_1344(),             
+        .ready      (),                    // always 1 — unused here
+        .done       (pad_done),
+        .block_1344 (block_1344_unused),   // unused at top level
         .state_A_flat(padded_state_flat)
     );
 
-    // 2. Permutation Engine
+    // -----------------------------------------------------------------------
+    // 2. Keccak-f[1600] permutation — 24-round FSM (unchanged)
+    //    Latches state_A_flat on the posedge where pad_done (= start) is high.
+    // -----------------------------------------------------------------------
     keccak_permutation perm_inst (
-        .clk(clk),
-        .rst_n(rst_n),
-        .start(pad_done),          
+        .clk          (clk),
+        .rst_n        (rst_n),
+        .start        (pad_done),
         .state_in_flat(padded_state_flat),
-        .ready(),                  
-        .done(done),               
+        .ready        (perm_ready),
+        .done         (done),
         .state_out_flat(permuted_state_flat)
     );
 
-    // 3. The Squeezing Phase (Truncation)
+    // ready = permutation ready (the only real stall source)
+    assign ready = perm_ready;
+
+    // -----------------------------------------------------------------------
+    // 3. Squeeze: take the first RATE_BITS (1344) of the permuted state
+    // -----------------------------------------------------------------------
     assign raw_hash_out = permuted_state_flat[1343:0];
 
-    // =======================================================
-    // FIX 2: You MUST instantiate the 1344-bit swap module here!
-    // If you accidentally used 'endian_swap_272', it leaves 1072 output pins floating (z).
-    // =======================================================
-    endian_swap_1344 swap_out_inst (
-        .in_data(raw_hash_out),
+    // Endian-swap the output (1344 bits)
+    endian_swap #(.DATA_BITS(1344)) swap_out_inst (
+        .in_data (raw_hash_out),
         .out_data(hash_out)
     );
 
