@@ -1,87 +1,60 @@
 `timescale 1ns / 1ps
 
-module sha3_512_pad_512bit (
-    input  wire          clk,
-    input  wire          rst_n,
-    input  wire          start,          // Pulse high when 'message_512' is valid
-    input  wire [511:0]  message_512,    // 512-bit input message (64 bytes)
-    output reg           ready,          // High when module can accept a new message
-    output reg           done,           // Pulsed high for 1 cycle when data is valid
-    output reg  [575:0]  block_576,      // Final 576-bit padded rate block
-    output reg  [1599:0] state_A_flat   
+module sha3_512_pad_512bit #(
+    parameter MSG_BITS = 512
+) (
+    // imp - clk / rst_n kept in the port list for interface compatibility,
+    // but are unused inside this module.
+    input  wire                  clk,
+    input  wire                  rst_n,
+
+    input  wire                  start,        // Pulse high when message_512 is valid
+    input  wire [MSG_BITS-1:0]   message_512,  // Input message
+
+    output wire                  ready,        // Always 1 — combinational pad is always ready
+    output wire                  done,         // Equals start — output valid same cycle
+
+    output wire [575:0]          block_576,    // 576-bit padded rate block
+    output wire [1599:0]         state_A_flat  // 1600-bit initial Keccak state
 );
 
-    // Local constants for padding values
-    localparam [7:0] PAD_0X06 = 8'h06;
-    localparam [7:0] PAD_0X80 = 8'h80;
+    // -----------------------------------------------------------------------
+    // Fixed SHA3-512 geometry
+    // -----------------------------------------------------------------------
+    localparam RATE_BITS      = 576; //size of input max for sha3-512
+    localparam ZERO_FILL_BITS = RATE_BITS - MSG_BITS - 16; //to calculate 0s to be filled
 
-    // State Machine parameters
-    localparam STATE_IDLE  = 1'b0;
-    localparam STATE_PAD   = 1'b1;
-    reg current_state, next_state;
+    localparam [7:0] PAD_06 = 8'h06;
+    localparam [7:0] PAD_80 = 8'h80;
 
-    // Next State Logic
-    always @(*) begin
-        case (current_state)
-            STATE_IDLE: begin
-                if (start)
-                    next_state = STATE_PAD;
-                else
-                    next_state = STATE_IDLE;
-            end
-            STATE_PAD: begin
-                next_state = STATE_IDLE; // Process takes exactly 1 clock cycle
-            end
-            default: next_state = STATE_IDLE;
-        endcase
-    end
-
-    // Sequential Logic Control
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            current_state <= STATE_IDLE;
-            ready         <= 1'b1;
-            done          <= 1'b0;
-            block_576     <= 576'd0;
-            state_A_flat  <= 1600'd0;
-        end else begin
-            current_state <= next_state;
-
-            case (current_state)
-                STATE_IDLE: begin
-                    done  <= 1'b0;
-                    ready <= 1'b1;
-                    
-                    if (start) begin
-                        ready <= 1'b0;
-                        
-                        // Verilog concatenation {MSB, ..., LSB} perfectly handles the mapping.
-                        // We assemble the padding bytes and message instantly.
-                        block_576 <= {
-                            PAD_0X80,       // Bits [575:568]
-                            48'd0,          // Bits [567:520] (six 0x00 bytes)
-                            PAD_0X06,       // Bits [519:512]
-                            message_512     // Bits [511:0]
-                        };
-                        
-                        // state_A_flat is simply the block padded with 1024 capacity zeros.
-                        state_A_flat <= {
-                            1024'd0,        // Bits [1599:576] (Capacity)
-                            PAD_0X80,       // Bits [575:568]
-                            48'd0,          // Bits [567:520]
-                            PAD_0X06,       // Bits [519:512]
-                            message_512     // Bits [511:0]
-                        };
-                    end
-                end
-
-                STATE_PAD: begin
-                    // Data is now latched and valid. Pulse done.
-                    done  <= 1'b1;
-                    ready <= 1'b1; // Ready to accept next on the following cycle
-                end
-            endcase
+    // -----------------------------------------------------------------------
+    // Combinational padded rate block
+    // -----------------------------------------------------------------------
+    generate
+        if (ZERO_FILL_BITS > 0) begin : gen_normal_pad
+            assign block_576 = {
+                PAD_80,
+                {ZERO_FILL_BITS{1'b0}},
+                PAD_06,
+                message_512
+            };
+        end else begin : gen_adjacent_pad
+            // MSG_BITS = 560: 0x06 and 0x80 are adjacent, no zero fill needed
+            assign block_576 = {
+                PAD_80,
+                PAD_06,
+                message_512
+            };
         end
-    end
+    endgenerate
+
+    // Capacity zero-pad appended to form the full 1600-bit Keccak state
+    assign state_A_flat = {1024'd0, block_576};
+
+    // -----------------------------------------------------------------------
+    // Handshake signals
+    // -----------------------------------------------------------------------
+    assign ready = 1'b1;   // always ready; no stall possible
+    assign done  = start;  // output is valid the same cycle start is asserted
 
 endmodule
