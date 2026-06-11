@@ -1,25 +1,5 @@
 `timescale 1ns / 1ps
 
-// SHA3-512 Top Level – parameterized input message width.
-//
-// Parameter
-// ---------
-//   MSG_BITS : Number of input message bits.
-//              Must be a multiple of 8 and less than 576 (the SHA3-512 rate).
-//              Default = 512, preserving the original design behaviour.
-//
-// Pipeline after removing the padding FSM
-// ----------------------------------------
-//   start ──► endian_swap (comb) ──► pad (comb) ──► keccak_permutation (FSM, 26 cycles)
-//
-//   Cycle 0 : start asserted; pad output is immediately valid (combinational);
-//             pad_done = start, so keccak_permutation latches state_A_flat on
-//             the same posedge.
-//   Cycles 1-25 : permutation running; ready = 0.
-//   Cycle 26 : done pulses high; ready returns to 1.
-//
-// ready reflects the permutation's ready port — the only thing that can stall.
-
 module sha3_512_top #(
     parameter MSG_BITS = 512
 ) (
